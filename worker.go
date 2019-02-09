@@ -13,6 +13,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"google.golang.org/grpc"
 )
 
 const (
@@ -24,15 +26,17 @@ var (
 )
 
 type worker struct {
-	handlers []http.Handler
-	servers  []server
-	opt      *option
-	stopCh   chan struct{}
+	http    map[string]*http.Server
+	grpc    map[string]*grpc.Server
+	servers []server
+	opt     *option
+	stopCh  chan struct{}
 	sync.Mutex
 }
 
 type server struct {
-	*http.Server
+	http     *http.Server
+	grpc     *grpc.Server
 	listener net.Listener
 }
 
@@ -72,8 +76,8 @@ func (w *worker) initServers() error {
 		return fmt.Errorf("invalid %s integer", EnvNumFD)
 	}
 
-	if len(w.handlers) != numFDs {
-		return fmt.Errorf("handler number does not match numFDs, %v!=%v", len(w.handlers), numFDs)
+	if len(w.grpc)+len(w.http) != numFDs {
+		return fmt.Errorf("handler number does not match numFDs, %v!=%v", len(w.grpc)+len(w.http), numFDs)
 	}
 
 	for i := 0; i < numFDs; i++ {
@@ -82,10 +86,15 @@ func (w *worker) initServers() error {
 		if err != nil {
 			return fmt.Errorf("failed to inherit file descriptor: %d", i)
 		}
+
+		_, port, err := net.SplitHostPort(l.Addr().String())
+		if err != nil {
+			return fmt.Errorf("invalid address:%s", l.Addr().String())
+		}
+
 		server := server{
-			Server: &http.Server{
-				Handler: w.handlers[i],
-			},
+			grpc:     w.grpc[port],
+			http:     w.http[port],
 			listener: l,
 		}
 		w.servers = append(w.servers, server)
@@ -99,11 +108,24 @@ func (w *worker) startServers() error {
 	}
 	for i := 0; i < len(w.servers); i++ {
 		s := w.servers[i]
-		go func() {
-			if err := s.Serve(s.listener); err != nil {
-				log.Printf("http Serve error: %v\n", err)
-			}
-		}()
+
+		if s.http != nil {
+			go func() {
+				fmt.Println("http server listen on", s.listener.Addr())
+				if err := s.http.Serve(s.listener); err != nil {
+					log.Printf("http Serve error: %v\n", err)
+				}
+			}()
+		}
+
+		if s.grpc != nil {
+			go func() {
+				fmt.Println("grpc server listen on", s.listener.Addr())
+				if err := s.grpc.Serve(s.listener); err != nil {
+					log.Printf("grpc Serve error: %v\n", err)
+				}
+			}()
+		}
 	}
 
 	return nil
@@ -144,9 +166,15 @@ func (w *worker) stop() {
 	for _, server := range w.servers {
 		ctx, cancel := context.WithTimeout(context.TODO(), w.opt.stopTimeout)
 		defer cancel()
-		err := server.Shutdown(ctx)
-		if err != nil {
-			log.Printf("shutdown server error: %v\n", err)
+		if server.http != nil {
+			err := server.http.Shutdown(ctx)
+			if err != nil {
+				log.Printf("shutdown server error: %v\n", err)
+			}
+		}
+
+		if server.grpc != nil {
+			server.grpc.GracefulStop()
 		}
 	}
 }

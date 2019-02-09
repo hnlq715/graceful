@@ -1,16 +1,20 @@
 # graceful
-Inspired by [overseer](https://github.com/jpillora/overseer) and [endless](https://github.com/fvbock/endless), with minimum codes and handy api to make http server graceful.
 
-# Prerequisite
+Inspired by [overseer](https://github.com/jpillora/overseer) and [endless](https://github.com/fvbock/endless), with minimum codes and handy api to make http and grpc server graceful.
+
+## Prerequisite
+
 golang 1.8+
 
-# Feature
+## Feature
+
 - Graceful reload http servers, zero downtime on upgrade.
 - Compatible with systemd, supervisor, etc.
 - Drop-in placement for ```http.ListenAndServe```
 
-# Example 
-``` go 
+## Example
+
+``` golang
     type handler struct {
     }
 
@@ -19,12 +23,13 @@ golang 1.8+
     }
 
     func main(){
-	    graceful.ListenAndServe(":9222", &handler{})
+        graceful.ListenAndServe(":9222", &handler{})
     }
 ```
 
 multi servers:
-```go
+
+```golang
     func main(){
         server := graceful.NewServer()
         server.Register("0.0.0.0:9223", &handler{})
@@ -37,16 +42,20 @@ multi servers:
 
 More example checkout example folder.
 
-# Reload
+## Reload
+
 ```SIGHUP``` and ```SIGUSR1``` on master proccess are used as default to reload server. ```server.Reload()``` func works as well from your code.
 
 
-# Drawbacks
+## Drawbacks
+
 ```graceful``` starts a master process to keep pid unchaged for process managers(systemd, supervisor, etc.), and a worker proccess listen to actual addrs. That means ```graceful``` starts one more process. Fortunately, master proccess waits for signals and reload worker when neccessary, which is costless since reload is usually low-frequency action. 
 
-# Default values
+## Default values
+
 * ```StopTimeout```. Unfinished old connections will be drop in ```{StopTimeout}``` seconds, default 20s, after new server is up.
-```go
+
+```golang
 	server := graceful.NewServer(graceful.WithStopTimeout(time.Duration(4 * time.Hour)))
 	server.Register(addr, handler)
 	if err := server.Run(); err != nil {
@@ -54,7 +63,8 @@ More example checkout example folder.
 	}
 ```
 * ```Signals```. Default reload signals: ```syscall.SIGHUP, syscall.SIGUSR1``` and stop signals: ```syscall.SIGKILL, syscall.SIGTERM, syscall.SIGINT``` could be overwrited with:
-```go
+
+```golang
 	server := graceful.NewServer(graceful.WithStopSignals([]syscall.Signal{syscall.SIGKILL}), graceful.WithReloadSignals([]syscall.Signal{syscall.SIGHUP}))
 	server.Register(addr, handler)
 	if err := server.Run(); err != nil {
@@ -62,6 +72,7 @@ More example checkout example folder.
 	}
 ```
 
-# TODO
+## TODO
+
 - ListenAndServeTLS
 - Add alternative api: Run in single process without master-worker
