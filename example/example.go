@@ -12,6 +12,7 @@ import (
 	"github.com/hnlq715/graceful"
 	"google.golang.org/grpc"
 	pb "google.golang.org/grpc/examples/helloworld/helloworld"
+	"google.golang.org/grpc/reflection"
 )
 
 type handler struct {
@@ -38,6 +39,7 @@ func (s *server) SayHello(ctx context.Context, in *pb.HelloRequest) (*pb.HelloRe
 func listenMultiAddrs() {
 	s := grpc.NewServer()
 	pb.RegisterGreeterServer(s, &server{})
+	reflection.Register(s)
 
 	server := graceful.NewServer()
 	// server.Register("0.0.0.0:9223", &handler{})
