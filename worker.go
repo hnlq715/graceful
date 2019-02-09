@@ -9,11 +9,13 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strconv"
 	"sync"
 	"syscall"
 	"time"
 
+	"github.com/ErikDubbelboer/gspt"
 	"google.golang.org/grpc"
 )
 
@@ -41,6 +43,8 @@ type server struct {
 }
 
 func (w *worker) run() error {
+	gspt.SetProcTitle(filepath.Base(os.Args[0]) + ": worker process")
+
 	// init servers with fds from master
 	err := w.initServers()
 	if err != nil {

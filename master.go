@@ -7,8 +7,11 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"sync"
 	"sync/atomic"
+
+	"github.com/ErikDubbelboer/gspt"
 )
 
 type master struct {
@@ -30,6 +33,8 @@ type master struct {
 
 func (m *master) run() error {
 	m.Lock()
+	gspt.SetProcTitle(filepath.Base(os.Args[0]) + ": master process")
+
 	// init fds
 	err := m.initFDs()
 	if err != nil {
