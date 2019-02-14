@@ -147,7 +147,7 @@ func (w *worker) waitSignal() {
 	w.stop()
 }
 
-// TODO: shutdown in parallel
+// stop graceful in parallel
 func (w *worker) stop() {
 	w.Lock()
 	defer w.Unlock()
