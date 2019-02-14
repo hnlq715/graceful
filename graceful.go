@@ -3,12 +3,9 @@ package graceful
 import (
 	"fmt"
 	"net"
-	"net/http"
 	"os"
 	"syscall"
 	"time"
-
-	"google.golang.org/grpc"
 )
 
 // constants
@@ -67,10 +64,9 @@ func WithWatchInterval(timeout time.Duration) Option {
 }
 
 type Server struct {
-	opt   *option
-	addrs []string
-	grpc  map[string]*grpc.Server
-	http  map[string]*http.Server
+	opt      *option
+	addrs    []string
+	services map[string]Service
 }
 
 func NewServer(opts ...Option) *Server {
@@ -84,37 +80,21 @@ func NewServer(opts ...Option) *Server {
 		opt(option)
 	}
 	return &Server{
-		addrs: make([]string, 0),
-		opt:   option,
-		grpc:  make(map[string]*grpc.Server),
-		http:  make(map[string]*http.Server),
+		addrs:    make([]string, 0),
+		opt:      option,
+		services: make(map[string]Service),
 	}
 }
 
-// RegisterHTTP registers an addr and its corresponding handler
-// all (addr, handler) pair will be started with server.Run
-func (s *Server) RegisterHTTP(addr string, handler http.Handler) {
+// RegisterGrpc register server
+func (s *Server) Register(addr string, service Service) {
 	s.addrs = append(s.addrs, addr)
 	_, port, err := net.SplitHostPort(addr)
 	if err != nil {
 		fmt.Println("invalid address:", addr)
 		return
 	}
-	s.http[port] = &http.Server{
-		Addr:    addr,
-		Handler: handler,
-	}
-}
-
-// RegisterGrpc register grpc server
-func (s *Server) RegisterGrpc(addr string, server *grpc.Server) {
-	s.addrs = append(s.addrs, addr)
-	_, port, err := net.SplitHostPort(addr)
-	if err != nil {
-		fmt.Println("invalid address:", addr)
-		return
-	}
-	s.grpc[port] = server
+	s.services[port] = service
 }
 
 // Run runs all register servers
@@ -124,7 +104,7 @@ func (s *Server) Run() error {
 	}
 	StartedAt = time.Now()
 	if IsWorker() {
-		worker := &worker{grpc: s.grpc, http: s.http, opt: s.opt, stopCh: make(chan struct{})}
+		worker := &worker{services: s.services, opt: s.opt, stopCh: make(chan struct{})}
 		return worker.run()
 	}
 	master := &master{addrs: s.addrs, opt: s.opt, workerExit: make(chan error)}
@@ -141,13 +121,6 @@ func (s *Server) Reload() error {
 	// Reload called by user from outside usally in user's handler
 	// which works on worker, master don't need to handle this
 	return nil
-}
-
-// ListenAndServe starts server with (addr, handler)
-func ListenAndServe(addr string, handler http.Handler) error {
-	server := NewServer()
-	server.RegisterHTTP(addr, handler)
-	return server.Run()
 }
 
 func IsWorker() bool {

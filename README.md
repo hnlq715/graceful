@@ -30,14 +30,26 @@ golang 1.8+
 multi servers:
 
 ```golang
-    func main(){
-        server := graceful.NewServer()
-        server.Register("0.0.0.0:9223", &handler{})
-        server.Register("0.0.0.0:9224", &handler{})
-        server.Register("0.0.0.0:9225", &handler{})
-        err := server.Run()
-        fmt.Printf("error: %v\n", err)
-    }
+func listenMultiAddrs() {
+	gs := grpcs.NewService()
+	pb.RegisterGreeterServer(gs.Server(), &server{})
+	reflection.Register(gs.Server())
+
+	hs := https.NewService()
+	hs.Server().Handler = &handler{}
+
+	server := graceful.NewServer()
+	server.Register("0.0.0.0:9224", gs)
+	server.Register("0.0.0.0:9225", hs)
+
+	err := server.Run()
+	fmt.Printf("error: %v\n", err)
+}
+
+```
+
+```bash
+grpcurl -plaintext -d '{"name":"sophos"}'  192.168.33.10:9224 helloworld.Greeter/SayHello
 ```
 
 More example checkout example folder.

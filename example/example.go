@@ -6,11 +6,10 @@ import (
 	"html"
 	"log"
 	"net/http"
-	"syscall"
-	"time"
 
 	"github.com/hnlq715/graceful"
-	"google.golang.org/grpc"
+	grpcs "github.com/hnlq715/graceful/grpc"
+	https "github.com/hnlq715/graceful/http"
 	pb "google.golang.org/grpc/examples/helloworld/helloworld"
 	"google.golang.org/grpc/reflection"
 )
@@ -19,7 +18,7 @@ type handler struct {
 }
 
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Hello, port: %v, %q", r.Host, html.EscapeString(r.URL.Path))
+	fmt.Fprintf(w, "Hello, port: %v, %q\n", r.Host, html.EscapeString(r.URL.Path))
 }
 
 func main() {
@@ -37,38 +36,17 @@ func (s *server) SayHello(ctx context.Context, in *pb.HelloRequest) (*pb.HelloRe
 }
 
 func listenMultiAddrs() {
-	s := grpc.NewServer()
-	pb.RegisterGreeterServer(s, &server{})
-	reflection.Register(s)
+	gs := grpcs.NewService()
+	pb.RegisterGreeterServer(gs.Server(), &server{})
+	reflection.Register(gs.Server())
+
+	hs := https.NewService()
+	hs.Server().Handler = &handler{}
 
 	server := graceful.NewServer()
-	// server.Register("0.0.0.0:9223", &handler{})
-	server.RegisterGrpc("0.0.0.0:9224", s)
-	server.RegisterHTTP("0.0.0.0:9225", &handler{})
+	server.Register("0.0.0.0:9224", gs)
+	server.Register("0.0.0.0:9225", hs)
 
 	err := server.Run()
 	fmt.Printf("error: %v\n", err)
-}
-
-func callReload() {
-	server := graceful.NewServer()
-	server.RegisterHTTP("0.0.0.0:9226", &handler{})
-	go func() {
-		time.Sleep(time.Second)
-		server.Reload()
-	}()
-
-	err := server.Run()
-	fmt.Printf("error: %v\n", err)
-}
-
-func setReloadSignal() {
-	server := graceful.NewServer(
-		graceful.WithReloadSignals([]syscall.Signal{syscall.SIGUSR2}),
-		graceful.WithStopSignals([]syscall.Signal{syscall.SIGINT}),
-		graceful.WithStopTimeout(time.Minute),
-		graceful.WithWatchInterval(10*time.Second),
-	)
-	server.RegisterHTTP("0.0.0.0:9226", &handler{})
-	server.Run()
 }
