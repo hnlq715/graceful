@@ -23,7 +23,7 @@ golang 1.8+
     }
 
     func main(){
-        http.ListenAndServe(":9222", &handler{})
+        graceful.ListenAndServe(":9222", &handler{})
     }
 ```
 
@@ -31,11 +31,11 @@ multi servers:
 
 ```golang
 func listenMultiAddrs() {
-	gs := grpcs.NewService()
+	gs := grpc.NewService()
 	pb.RegisterGreeterServer(gs.Server(), &server{})
 	reflection.Register(gs.Server())
 
-	hs := https.NewService()
+	hs := graceful.NewService()
 	hs.Server().Handler = &handler{}
 
 	server := graceful.NewServer()
