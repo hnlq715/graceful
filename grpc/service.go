@@ -11,8 +11,8 @@ type Service struct {
 	server *grpc.Server
 }
 
-func NewService() *Service {
-	return &Service{server: grpc.NewServer()}
+func NewService(opts ...grpc.ServerOption) *Service {
+	return &Service{server: grpc.NewServer(opts...)}
 }
 
 func (s *Service) Serve(net net.Listener) error {
