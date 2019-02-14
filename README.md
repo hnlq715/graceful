@@ -23,7 +23,7 @@ golang 1.8+
     }
 
     func main(){
-        graceful.ListenAndServe(":9222", &handler{})
+        http.ListenAndServe(":9222", &handler{})
     }
 ```
 

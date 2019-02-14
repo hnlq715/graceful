@@ -8,8 +8,7 @@ import (
 	"net/http"
 
 	"github.com/hnlq715/graceful"
-	grpcs "github.com/hnlq715/graceful/grpc"
-	https "github.com/hnlq715/graceful/http"
+	"github.com/hnlq715/graceful/grpc"
 	pb "google.golang.org/grpc/examples/helloworld/helloworld"
 	"google.golang.org/grpc/reflection"
 )
@@ -22,8 +21,12 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	// graceful.ListenAndServe(":9222", &handler{})
-	listenMultiAddrs()
+	listenAndServe()
+	// listenMultiAddrs()
+}
+
+func listenAndServe() {
+	graceful.ListenAndServe("0.0.0.0:9223", &handler{})
 }
 
 // server is used to implement helloworld.GreeterServer.
@@ -36,11 +39,11 @@ func (s *server) SayHello(ctx context.Context, in *pb.HelloRequest) (*pb.HelloRe
 }
 
 func listenMultiAddrs() {
-	gs := grpcs.NewService()
+	gs := grpc.NewService()
 	pb.RegisterGreeterServer(gs.Server(), &server{})
 	reflection.Register(gs.Server())
 
-	hs := https.NewService()
+	hs := graceful.NewHTTPService()
 	hs.Server().Handler = &handler{}
 
 	server := graceful.NewServer()
