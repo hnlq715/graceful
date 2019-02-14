@@ -88,12 +88,15 @@ func (m *master) waitSignal() {
 
 		for _, s := range m.opt.reloadSignals {
 			if s == sig {
+				log.Println("master reload", sig)
 				m.reload()
 				break
 			}
 		}
+
 		for _, s := range m.opt.stopSignals {
 			if s == sig {
+				log.Println("master stop", sig)
 				m.stop()
 				return
 			}
@@ -116,7 +119,6 @@ func (m *master) reload() {
 }
 
 func (m *master) stop() {
-	// todo
 }
 
 // initFDs clone from https://github.com/jpillora/overseer
